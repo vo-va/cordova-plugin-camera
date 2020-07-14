@@ -76,8 +76,9 @@ public class FileHelper {
 
     @SuppressLint("NewApi")
     public static String getRealPathFromURI_API11_And_Above(final Context context, final Uri uri) {
-
         final boolean isKitKat = Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT;
+
+        String realPath = null;
         // DocumentProvider
         if (isKitKat && DocumentsContract.isDocumentUri(context, uri)) {
 
@@ -88,13 +89,17 @@ public class FileHelper {
                 final String type = split[0];
 
                 if ("primary".equalsIgnoreCase(type)) {
-                    return Environment.getExternalStorageDirectory() + "/" + split[1];
+                    realPath = Environment.getExternalStorageDirectory() + "/" + split[1];
+
                 }
 
                 // TODO handle non-primary volumes
             }
+            if (realPath != null) {
+                return realPath;
+            }
             // DownloadsProvider
-            else if (isDownloadsDocument(uri)) {
+            if (isDownloadsDocument(uri)) {
 
                 final String id = DocumentsContract.getDocumentId(uri);
                 if (id != null && id.length() > 0) {
@@ -105,17 +110,20 @@ public class FileHelper {
                         final Uri contentUri = ContentUris.withAppendedId(
                                 Uri.parse("content://downloads/public_downloads"), Long.valueOf(id));
 
-                        return getDataColumn(context, contentUri, null, null);
+                        realPath = getDataColumn(context, contentUri, null, null);
                     } catch (NumberFormatException e) {
-                        return null;
+//                        return null;
                     }
-                } else {
-                    return null;
                 }
             }
+
+            if (realPath != null) {
+                return realPath;
+            }
             // MediaProvider
-            else if (isMediaDocument(uri)) {
-                final String docId = DocumentsContract.getDocumentId(uri);
+            if (isMediaDocument(uri) || isDownloadsDocument(uri)) {
+                String docId = DocumentsContract.getDocumentId(uri);
+                docId = docId.replace("msf:", "video:");
                 final String[] split = docId.split(":");
                 final String type = split[0];
 
@@ -129,12 +137,13 @@ public class FileHelper {
                 }
 
                 final String selection = "_id=?";
-                final String[] selectionArgs = new String[] {
+                final String[] selectionArgs = new String[]{
                         split[1]
                 };
 
-                return getDataColumn(context, contentUri, selection, selectionArgs);
+                realPath = getDataColumn(context, contentUri, selection, selectionArgs);
             }
+            return realPath;
         }
         // MediaStore (and general)
         else if ("content".equalsIgnoreCase(uri.getScheme())) {
